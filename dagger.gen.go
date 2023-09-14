@@ -3734,7 +3734,7 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 			return (*Scan).Snyk(&parent, ctx, &ctr)
 		case "":
 			var err error
-			var typeDefBytes []byte = []byte("{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"ctr\",\"typeDef\":{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"snykToken\",\"typeDef\":{\"asObject\":{\"name\":\"Secret\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"kind\":\"StringKind\"}}],\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Scan\"},\"kind\":\"ObjectKind\"}")
+			var typeDefBytes []byte = []byte("{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"ctr\",\"typeDef\":{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"snykToken\",\"typeDef\":{\"asObject\":{\"name\":\"Secret\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Scan\"},\"kind\":\"ObjectKind\"}")
 			var typeDef TypeDefInput
 			err = json.Unmarshal(typeDefBytes, &typeDef)
 			if err != nil {
