@@ -19,7 +19,6 @@ func (ctr *Container) Snyk(ctx context.Context, token string, path string) (*Con
 		WithExec([]string{"mv", "./snyk", "/usr/local/bin"}).
 		WithWorkdir(path).
 		WithEnvVariable("SNYK_TOKEN", token).
-		//WithExec([]string{"snyk", "monitor", "--all-projects", "--org=5e86b410-1a77-462a-a352-901a216fc3a6"})
 		WithExec([]string{"snyk", "test"})
 
 	return c, nil
