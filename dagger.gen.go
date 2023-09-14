@@ -2652,10 +2652,12 @@ type Module struct {
 	q *querybuilder.Selection
 	c graphql.Client
 
-	description *string
-	id          *ModuleID
-	name        *string
-	serve       *Void
+	description            *string
+	id                     *ModuleID
+	name                   *string
+	sdk                    *string
+	serve                  *Void
+	sourceDirectorySubPath *string
 }
 type WithModuleFunc func(r *Module) *Module
 
@@ -2664,6 +2666,47 @@ type WithModuleFunc func(r *Module) *Module
 // This is useful for reusability and readability by not breaking the calling chain.
 func (r *Module) With(f WithModuleFunc) *Module {
 	return f(r)
+}
+
+// Modules used by this module
+func (r *Module) Dependencies(ctx context.Context) ([]Module, error) {
+	q := r.q.Select("dependencies")
+
+	q = q.Select("id")
+
+	type dependencies struct {
+		Id ModuleID
+	}
+
+	convert := func(fields []dependencies) []Module {
+		out := []Module{}
+
+		for i := range fields {
+			out = append(out, Module{id: &fields[i].Id})
+		}
+
+		return out
+	}
+	var response []dependencies
+
+	q = q.Bind(&response)
+
+	err := q.Execute(ctx, r.c)
+	if err != nil {
+		return nil, err
+	}
+
+	return convert(response), nil
+}
+
+// The dependencies as configured by the module
+func (r *Module) DependencyConfig(ctx context.Context) ([]string, error) {
+	q := r.q.Select("dependencyConfig")
+
+	var response []string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.c)
 }
 
 // The doc string of the module, if any
@@ -2710,6 +2753,7 @@ func (r *Module) Functions(ctx context.Context) ([]Function, error) {
 	return convert(response), nil
 }
 
+// The ID of the module
 func (r *Module) ID(ctx context.Context) (ModuleID, error) {
 	if r.id != nil {
 		return *r.id, nil
@@ -2775,6 +2819,19 @@ func (r *Module) Name(ctx context.Context) (string, error) {
 	return response, q.Execute(ctx, r.c)
 }
 
+// The SDK used by this module
+func (r *Module) SDK(ctx context.Context) (string, error) {
+	if r.sdk != nil {
+		return *r.sdk, nil
+	}
+	q := r.q.Select("sdk")
+
+	var response string
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.c)
+}
+
 // ModuleServeOpts contains options for Module.Serve
 type ModuleServeOpts struct {
 	Environment []*ModuleEnvironmentVariable
@@ -2797,6 +2854,29 @@ func (r *Module) Serve(ctx context.Context, opts ...ModuleServeOpts) (Void, erro
 	}
 
 	var response Void
+
+	q = q.Bind(&response)
+	return response, q.Execute(ctx, r.c)
+}
+
+// The directory containing the module's source code
+func (r *Module) SourceDirectory() *Directory {
+	q := r.q.Select("sourceDirectory")
+
+	return &Directory{
+		q: q,
+		c: r.c,
+	}
+}
+
+// The module's subpath within the source directory
+func (r *Module) SourceDirectorySubPath(ctx context.Context) (string, error) {
+	if r.sourceDirectorySubPath != nil {
+		return *r.sourceDirectorySubPath, nil
+	}
+	q := r.q.Select("sourceDirectorySubPath")
+
+	var response string
 
 	q = q.Bind(&response)
 	return response, q.Execute(ctx, r.c)
@@ -3552,5 +3632,124 @@ func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func main() {
-	panic("no module struct yet")
+	ctx := context.Background()
+
+	fnCall := dag.CurrentFunctionCall()
+	parentName, err := fnCall.ParentName(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+	fnName, err := fnCall.Name(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+	parentJson, err := fnCall.Parent(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+	fnArgs, err := fnCall.InputArgs(ctx)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+
+	inputArgs := map[string][]byte{}
+	for _, fnArg := range fnArgs {
+		argName, err := fnArg.Name(ctx)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
+		argValue, err := fnArg.Value(ctx)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
+		inputArgs[argName] = []byte(argValue)
+	}
+
+	result, err := invoke(ctx, []byte(parentJson), parentName, fnName, inputArgs)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+	resultBytes, err := json.Marshal(result)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+	_, err = fnCall.ReturnValue(ctx, JSON(resultBytes))
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+}
+
+func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName string, inputArgs map[string][]byte) (any, error) {
+	switch parentName {
+	case "Scan":
+		switch fnName {
+		case "Snyk":
+			var err error
+			var parent Scan
+			err = json.Unmarshal(parentJSON, &parent)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(2)
+			}
+			var ctr Container
+			err = json.Unmarshal([]byte(inputArgs["ctr"]), &ctr)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(2)
+			}
+			return (*Scan).Snyk(&parent, ctx, &ctr)
+		case "":
+			var err error
+			var typeDefBytes []byte = []byte("{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"ctr\",\"typeDef\":{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"snykToken\",\"typeDef\":{\"asObject\":{\"name\":\"Secret\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Scan\"},\"kind\":\"ObjectKind\"}")
+			var typeDef TypeDefInput
+			err = json.Unmarshal(typeDefBytes, &typeDef)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(2)
+			}
+			mod := dag.CurrentModule()
+			for _, fnDef := range typeDef.AsObject.Functions {
+				mod = mod.WithFunction(dag.NewFunction(fnDef))
+			}
+			return mod, nil
+		default:
+			return nil, fmt.Errorf("unknown function %s", fnName)
+		}
+	case "Secret":
+		switch fnName {
+		default:
+			return nil, fmt.Errorf("unknown function %s", fnName)
+		}
+	case "Container":
+		switch fnName {
+		case "Snyk":
+			var err error
+			var parent Container
+			err = json.Unmarshal(parentJSON, &parent)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(2)
+			}
+			var snykToken Secret
+			err = json.Unmarshal([]byte(inputArgs["snykToken"]), &snykToken)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(2)
+			}
+			return (*Container).Snyk(&parent, ctx, &snykToken)
+		default:
+			return nil, fmt.Errorf("unknown function %s", fnName)
+		}
+	default:
+		return nil, fmt.Errorf("unknown object %s", parentName)
+	}
 }

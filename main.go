@@ -6,6 +6,10 @@ import (
 
 type Scan struct{}
 
+func (m *Scan) Snyk(ctx context.Context, ctr *Container) (*Container, error) {
+	return ctr, nil
+}
+
 func (ctr *Container) Snyk(ctx context.Context, snykToken *Secret) (*Container, error) {
 
 	c := ctr.
