@@ -10,7 +10,7 @@ func (m *Scan) Snyk(ctx context.Context, ctr *Container) (*Container, error) {
 	return ctr, nil
 }
 
-func (ctr *Container) Snyk(ctx context.Context, snykToken *Secret) (string, error) {
+func (ctr *Container) Snyk(ctx context.Context, snykToken *Secret) string {
 
 	c := ctr.
 		WithWorkdir("/tmp").
@@ -23,5 +23,5 @@ func (ctr *Container) Snyk(ctx context.Context, snykToken *Secret) (string, erro
 		WithExec([]string{"snyk", "test"}).
 		Stdout(ctx)
 
-	return c, nil
+	return c
 }
