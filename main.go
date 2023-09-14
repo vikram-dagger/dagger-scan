@@ -10,7 +10,7 @@ func (m *Scan) Snyk(ctx context.Context, ctr *Container) (*Container, error) {
 	return ctr, nil
 }
 
-func (ctr *Container) Snyk(ctx context.Context, snykToken *Secret) (*Container, error) {
+func (ctr *Container) Snyk(ctx context.Context, snykToken *Secret) (string, error) {
 
 	c := ctr.
 		WithWorkdir("/tmp").
@@ -19,7 +19,9 @@ func (ctr *Container) Snyk(ctx context.Context, snykToken *Secret) (*Container, 
 		WithExec([]string{"mv", "./snyk", "/usr/local/bin"}).
 		WithWorkdir("/src").
 		WithSecretVariable("SNYK_TOKEN", snykToken).
-		WithExec([]string{"snyk", "monitor", "--all-projects", "--org=5e86b410-1a77-462a-a352-901a216fc3a6"})
+		//WithExec([]string{"snyk", "monitor", "--all-projects", "--org=5e86b410-1a77-462a-a352-901a216fc3a6"})
+		WithExec([]string{"snyk", "text")
+		Stdout(ctx)
 
 	return c, nil
 }
