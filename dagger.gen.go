@@ -3690,40 +3690,6 @@ func main() {
 
 func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName string, inputArgs map[string][]byte) (any, error) {
 	switch parentName {
-	case "Scan":
-		switch fnName {
-		case "Snyk":
-			var err error
-			var parent Scan
-			err = json.Unmarshal(parentJSON, &parent)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(2)
-			}
-			var ctr Container
-			err = json.Unmarshal([]byte(inputArgs["ctr"]), &ctr)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(2)
-			}
-			return (*Scan).Snyk(&parent, ctx, &ctr)
-		case "":
-			var err error
-			var typeDefBytes []byte = []byte("{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"ctr\",\"typeDef\":{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"snykToken\",\"typeDef\":{\"asObject\":{\"name\":\"Secret\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Scan\"},\"kind\":\"ObjectKind\"}")
-			var typeDef TypeDefInput
-			err = json.Unmarshal(typeDefBytes, &typeDef)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(2)
-			}
-			mod := dag.CurrentModule()
-			for _, fnDef := range typeDef.AsObject.Functions {
-				mod = mod.WithFunction(dag.NewFunction(fnDef))
-			}
-			return mod, nil
-		default:
-			return nil, fmt.Errorf("unknown function %s", fnName)
-		}
 	case "Secret":
 		switch fnName {
 		default:
@@ -3746,6 +3712,40 @@ func invoke(ctx context.Context, parentJSON []byte, parentName string, fnName st
 				os.Exit(2)
 			}
 			return (*Container).Snyk(&parent, ctx, &snykToken)
+		default:
+			return nil, fmt.Errorf("unknown function %s", fnName)
+		}
+	case "Scan":
+		switch fnName {
+		case "Snyk":
+			var err error
+			var parent Scan
+			err = json.Unmarshal(parentJSON, &parent)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(2)
+			}
+			var ctr Container
+			err = json.Unmarshal([]byte(inputArgs["ctr"]), &ctr)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(2)
+			}
+			return (*Scan).Snyk(&parent, ctx, &ctr)
+		case "":
+			var err error
+			var typeDefBytes []byte = []byte("{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"ctr\",\"typeDef\":{\"asObject\":{\"functions\":[{\"args\":[{\"name\":\"snykToken\",\"typeDef\":{\"asObject\":{\"name\":\"Secret\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"kind\":\"StringKind\"}}],\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Snyk\",\"returnType\":{\"asObject\":{\"name\":\"Container\"},\"kind\":\"ObjectKind\"}}],\"name\":\"Scan\"},\"kind\":\"ObjectKind\"}")
+			var typeDef TypeDefInput
+			err = json.Unmarshal(typeDefBytes, &typeDef)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(2)
+			}
+			mod := dag.CurrentModule()
+			for _, fnDef := range typeDef.AsObject.Functions {
+				mod = mod.WithFunction(dag.NewFunction(fnDef))
+			}
+			return mod, nil
 		default:
 			return nil, fmt.Errorf("unknown function %s", fnName)
 		}
